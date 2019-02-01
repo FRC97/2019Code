@@ -36,8 +36,9 @@ public class Robot extends TimedRobot {
   private final TalonSRX talon1 = new TalonSRX(1);
   private final TalonSRX talon2 = new TalonSRX(2);
   private final TalonSRX talon3 = new TalonSRX(3);
-  private final DigitalInput linesensor = new DigitalInput(0);
-  private final VictorSP victor = new VictorSP(5); 
+  private final DigitalInput line_middle = new DigitalInput(0);
+  private final DigitalInput line_left = new DigitalInput(1);
+  private final DigitalInput line_right = new DigitalInput(2);
 
   /**
    * This function is run when the robot is first started up and should be
@@ -72,58 +73,37 @@ public class Robot extends TimedRobot {
    */
   @Override
   public void teleopInit() {
-    direction = .25;
-    log = "";
+    
   }
 
-  private final double init_direction = .15;
-  private double direction = .15;
-  private double turn = 1; // (1 = right, -1 = left)
-  private boolean prev_on_tape = false;
-  private final double speed = .15;
-  private Timer time_on_tape = new Timer();
-  private String log = "";
-  private int count = 0;
 
   /**
    * This function is called periodically during teleoperated mode.
    */
   @Override
   public void teleopPeriodic() {
-    count++;
     //m_robotDrive.arcadeDrive(m_stick.getY(), m_stick.getX());
     //talon2.set(ControlMode.PercentOutput, m_stick.getY());
     //talon3.set(ControlMode.PercentOutput, m_stick.getX());
-    SmartDashboard.putBoolean("Line Sensor", linesensor.get());
+    SmartDashboard.putBoolean("Right Line Sensor", line_right.get());
+    SmartDashboard.putBoolean("Left Line Sensor", line_left.get());
+
     if(m_stick.getTrigger()) {
-      if(!linesensor.get()) {
-        if(prev_on_tape) { // reverse direction based on time_on_tape
-          turn *= -1;
-          direction = turn * init_direction * .25 * Math.pow(.9, time_on_tape.get());
-          log += "(" + time_on_tape.get() + ", " + count + "), ";
-          SmartDashboard.putString("auto log", log);
+        if(!line_left.get() && line_right.get()) {
+            turn = -1;
         }
-        prev_on_tape = false;
-      }
-      else {
-        if(!prev_on_tape) {
-          time_on_tape.reset();
-          time_on_tape.start();
-          count = 0;
+        else if(line_left.get() && !line_right.get()) {
+            turn = 1;
         }
-        prev_on_tape = true;
-      }
-      drive(speed, direction);
+        else {
+            turn = 0;
+        }
+      drive(speed, direction * turn);
     }
     else {
       drive(-m_stick.getY(), m_stick.getX());
     }
-    SmartDashboard.putNumber("z axis", (-m_stick.getZ() + 1) / 2);
-    if(!m_stick.getRawButton(7)) {
-      victor.set((-m_stick.getZ() + 1) / 4);
-    } else {
-      victor.set(-1 * (-m_stick.getZ() + 1) / 4);      
-    }
+    
   }
 
   // direction(right->1, left->-1)
@@ -151,5 +131,9 @@ public class Robot extends TimedRobot {
    */
   @Override
   public void testPeriodic() {
+
   }
+private double direction = .15;
+private double turn = 0; // (1 = right, -1 = left)
+private double speed = .15;
 }
