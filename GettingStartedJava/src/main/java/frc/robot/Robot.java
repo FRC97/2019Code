@@ -9,14 +9,18 @@ package frc.robot;
 
 import com.ctre.phoenix.motorcontrol.ControlMode;
 import com.ctre.phoenix.motorcontrol.can.TalonSRX;
+import com.ctre.phoenix.motorcontrol.can.VictorSPX;
 
 import edu.wpi.first.wpilibj.DigitalInput;
 import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.PWMVictorSPX;
+import edu.wpi.first.wpilibj.Relay;
+import edu.wpi.first.wpilibj.Solenoid;
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.Victor;
 import edu.wpi.first.wpilibj.VictorSP;
+import edu.wpi.first.wpilibj.Relay.Value;
 import edu.wpi.first.wpilibj.drive.DifferentialDrive;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
@@ -32,13 +36,16 @@ public class Robot extends TimedRobot {
   //    = new DifferentialDrive(new PWMVictorSPX(0), new PWMVictorSPX(1));
   private final Joystick m_stick = new Joystick(0);
   private final Timer m_timer = new Timer();
-  private final TalonSRX talon0 = new TalonSRX(0);
-  private final TalonSRX talon1 = new TalonSRX(1);
-  private final TalonSRX talon2 = new TalonSRX(2);
-  private final TalonSRX talon3 = new TalonSRX(3);
+  private final TalonSRX drive2 = new TalonSRX(2);
+  private final VictorSPX drive4 = new VictorSPX(4);
+  private final VictorSPX drive5 = new VictorSPX(5);
+  private final TalonSRX drive3 = new TalonSRX(3);
   private final DigitalInput line_middle = new DigitalInput(0);
   private final DigitalInput line_left = new DigitalInput(1);
   private final DigitalInput line_right = new DigitalInput(2);
+  private final Solenoid solenoid = new Solenoid(0);
+  private final Relay vacuum = new Relay(0);
+  private final VictorSP flip = new VictorSP(2);
 
   /**
    * This function is run when the robot is first started up and should be
@@ -82,27 +89,46 @@ public class Robot extends TimedRobot {
    */
   @Override
   public void teleopPeriodic() {
-    //m_robotDrive.arcadeDrive(m_stick.getY(), m_stick.getX());
+    //m_robotDrive.arcadeDrive(m_stick.gRelay.Value.kForwardetY(), m_stick.getX());
     //talon2.set(ControlMode.PercentOutput, m_stick.getY());
     //talon3.set(ControlMode.PercentOutput, m_stick.getX());
     SmartDashboard.putBoolean("Right Line Sensor", line_right.get());
     SmartDashboard.putBoolean("Left Line Sensor", line_left.get());
 
+    if(m_stick.getRawButton(7)) {
+      //solenoid.set(true);
+      vacuum.set(Relay.Value.kOff);
+      SmartDashboard.putString("vacuum", "off");
+    } else if(m_stick.getRawButton(6)) {
+      //solenoid.set(false);
+      vacuum.set(Relay.Value.kForward);
+      SmartDashboard.putString("vacuum", "forward");
+    } else if(m_stick.getRawButton(8)) {
+      vacuum.set(Relay.Value.kReverse);
+      SmartDashboard.putString("vacuum", "reverse");
+    }
+
     if(m_stick.getTrigger()) {
-        if(!line_left.get() && line_right.get()) {
-            turn = -1;
-        }
-        else if(line_left.get() && !line_right.get()) {
-            turn = 1;
-        }
-        else {
-            turn = 0;
-        }
-      drive(speed, direction * turn);
+      flip.set(m_stick.getZ());
+    } else {
+      flip.set(0);
     }
-    else {
-      drive(-m_stick.getY(), m_stick.getX());
-    }
+
+    // if(m_stick.getTrigger()) {
+    //     if(!line_left.get() && line_right.get()) {
+    //         turn = -1;
+    //     }
+    //     else if(line_left.get() && !line_right.get()) {
+    //         turn = 1;
+    //     }
+    //     else {
+    //         turn = 0;
+    //     }
+    //   drive(speed, direction * turn);
+    // }
+    // else {
+    //   drive(-m_stick.getY(), m_stick.getX());
+    // }
     
   }
 
@@ -110,10 +136,10 @@ public class Robot extends TimedRobot {
   private void drive(double speed, double direction) {
     SmartDashboard.putNumber("direction", direction);
     SmartDashboard.putNumberArray("drive outputs", new double[] {constrain(speed - direction), constrain(speed + direction)});
-    talon0.set(ControlMode.PercentOutput, -1 * constrain(speed - direction)); // right
-    talon2.set(ControlMode.PercentOutput, -1 * constrain(speed - direction)); // right
-    talon1.set(ControlMode.PercentOutput, constrain(speed + direction)); // left
-    talon3.set(ControlMode.PercentOutput, constrain(speed + direction)); // left
+    // drive3.set(ControlMode.PercentOutput, -1 * constrain(speed - direction)); // right
+    // drive5.set(ControlMode.PercentOutput, -1 * constrain(speed - direction)); // right
+    // drive2.set(ControlMode.PercentOutput, constrain(speed + direction)); // left
+    // drive4.set(ControlMode.PercentOutput, constrain(speed + direction)); // left
   }
 
   private double constrain(double num) {
