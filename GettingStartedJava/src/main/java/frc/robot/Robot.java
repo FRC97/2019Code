@@ -32,8 +32,8 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
  * directory.
  */
 public class Robot extends TimedRobot {
-  //private final DifferentialDrive m_robotDrive
-  //    = new DifferentialDrive(new PWMVictorSPX(0), new PWMVictorSPX(1));
+  // private final DifferentialDrive m_robotDrive
+  // = new DifferentialDrive(new PWMVictorSPX(0), new PWMVictorSPX(1));
   private final Joystick m_stick = new Joystick(0);
   private final Timer m_timer = new Timer();
   private final TalonSRX drive2 = new TalonSRX(2);
@@ -48,8 +48,8 @@ public class Robot extends TimedRobot {
   private final VictorSP flip = new VictorSP(2);
 
   /**
-   * This function is run when the robot is first started up and should be
-   * used for any initialization code.
+   * This function is run when the robot is first started up and should be used
+   * for any initialization code.
    */
   @Override
   public void robotInit() {
@@ -69,9 +69,9 @@ public class Robot extends TimedRobot {
   public void autonomousPeriodic() {
     // Drive for 2 seconds
     // if (m_timer.get() < 2.0) {
-    //   m_robotDrive.arcadeDrive(0.5, 0.0); // drive forwards half speed
+    // m_robotDrive.arcadeDrive(0.5, 0.0); // drive forwards half speed
     // } else {
-    //   m_robotDrive.stopMotor(); // stop robot
+    // m_robotDrive.stopMotor(); // stop robot
     // }
   }
 
@@ -80,73 +80,89 @@ public class Robot extends TimedRobot {
    */
   @Override
   public void teleopInit() {
-    
-  }
 
+  }
 
   /**
    * This function is called periodically during teleoperated mode.
    */
   @Override
   public void teleopPeriodic() {
-    //m_robotDrive.arcadeDrive(m_stick.gRelay.Value.kForwardetY(), m_stick.getX());
-    //talon2.set(ControlMode.PercentOutput, m_stick.getY());
-    //talon3.set(ControlMode.PercentOutput, m_stick.getX());
+    // m_robotDrive.arcadeDrive(m_stick.gRelay.Value.kForwardetY(), m_stick.getX());
+    // talon2.set(ControlMode.PercentOutput, m_stick.getY());
+    // talon3.set(ControlMode.PercentOutput, m_stick.getX());
     SmartDashboard.putBoolean("Right Line Sensor", line_right.get());
     SmartDashboard.putBoolean("Left Line Sensor", line_left.get());
 
-    if(m_stick.getRawButton(7)) {
-      //solenoid.set(true);
+    if (m_stick.getRawButton(7)) {
+      // solenoid.set(true);
       vacuum.set(Relay.Value.kOff);
       SmartDashboard.putString("vacuum", "off");
-    } else if(m_stick.getRawButton(6)) {
-      //solenoid.set(false);
+    } else if (m_stick.getRawButton(6)) {
+      // solenoid.set(false);
       vacuum.set(Relay.Value.kForward);
       SmartDashboard.putString("vacuum", "forward");
-    } else if(m_stick.getRawButton(8)) {
+    } else if (m_stick.getRawButton(8)) {
       vacuum.set(Relay.Value.kReverse);
       SmartDashboard.putString("vacuum", "reverse");
     }
 
-    if(m_stick.getTrigger()) {
-      flip.set(m_stick.getZ());
+    if (m_stick.getTrigger()) {
+      double tilt = SmartDashboard.getNumber("tapeTilt", 0);
+      double yaw = SmartDashboard.getNumber("tapeYaw", 0);
+
+      double goal_yaw = -tilt;
+      double corrected_yaw = yaw / 30;
+
+      drive(speed, goal_yaw - corrected_yaw);
     } else {
-      flip.set(0);
+      drive(-m_stick.getY(), m_stick.getX());
     }
 
+    // // Set flip motor to Z axis
     // if(m_stick.getTrigger()) {
-    //     if(!line_left.get() && line_right.get()) {
-    //         turn = -1;
-    //     }
-    //     else if(line_left.get() && !line_right.get()) {
-    //         turn = 1;
-    //     }
-    //     else {
-    //         turn = 0;
-    //     }
-    //   drive(speed, direction * turn);
+    // flip.set(m_stick.getZ());
+    // } else {
+    // flip.set(0);
+    // }
+
+    // // Line following on trigger
+    // if(m_stick.getTrigger()) {
+    // if(!line_left.get() && line_right.get()) {
+    // turn = -1;
+    // }
+    // else if(line_left.get() && !line_right.get()) {
+    // turn = 1;
     // }
     // else {
-    //   drive(-m_stick.getY(), m_stick.getX());
+    // turn = 0;
     // }
-    
+    // drive(speed, direction * turn);
+    // }
+    // else {
+    // drive(-m_stick.getY(), m_stick.getX());
+    // }
+
   }
 
   // direction(right->1, left->-1)
   private void drive(double speed, double direction) {
     SmartDashboard.putNumber("direction", direction);
-    SmartDashboard.putNumberArray("drive outputs", new double[] {constrain(speed - direction), constrain(speed + direction)});
-    // drive3.set(ControlMode.PercentOutput, -1 * constrain(speed - direction)); // right
-    // drive5.set(ControlMode.PercentOutput, -1 * constrain(speed - direction)); // right
+    SmartDashboard.putNumberArray("drive outputs",
+        new double[] { constrain(speed - direction), constrain(speed + direction) });
+    // drive3.set(ControlMode.PercentOutput, -1 * constrain(speed - direction)); //
+    // right
+    // drive5.set(ControlMode.PercentOutput, -1 * constrain(speed - direction)); //
+    // right
     // drive2.set(ControlMode.PercentOutput, constrain(speed + direction)); // left
     // drive4.set(ControlMode.PercentOutput, constrain(speed + direction)); // left
   }
 
   private double constrain(double num) {
-    if(num > 1) {
+    if (num > 1) {
       return 1;
     }
-    if(num < -1) {
+    if (num < -1) {
       return -1;
     }
     return num;
@@ -159,7 +175,8 @@ public class Robot extends TimedRobot {
   public void testPeriodic() {
 
   }
-private double direction = .15;
-private double turn = 0; // (1 = right, -1 = left)
-private double speed = .15;
+
+  private double direction = .15;
+  private double turn = 0; // (1 = right, -1 = left)
+  private double speed = .15;
 }
