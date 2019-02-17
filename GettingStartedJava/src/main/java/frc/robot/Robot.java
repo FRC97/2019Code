@@ -11,6 +11,8 @@ import com.ctre.phoenix.motorcontrol.ControlMode;
 import com.ctre.phoenix.motorcontrol.can.TalonSRX;
 import com.ctre.phoenix.motorcontrol.can.VictorSPX;
 
+import edu.wpi.first.networktables.NetworkTable;
+import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.wpilibj.DigitalInput;
 import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.PWMVictorSPX;
@@ -23,7 +25,6 @@ import edu.wpi.first.wpilibj.VictorSP;
 import edu.wpi.first.wpilibj.Relay.Value;
 import edu.wpi.first.wpilibj.drive.DifferentialDrive;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
-
 /**
  * The VM is configured to automatically run this class, and to call the
  * functions corresponding to each mode, as described in the TimedRobot
@@ -47,12 +48,22 @@ public class Robot extends TimedRobot {
   private final Relay vacuum = new Relay(0);
   private final VictorSP flip = new VictorSP(2);
 
+  // 2018
+  private final TalonSRX talon0 = new TalonSRX(0);
+  private final TalonSRX talon1 = new TalonSRX(1);
+  private final TalonSRX talon2 = new TalonSRX(2);
+  private final TalonSRX talon3 = new TalonSRX(3);
+
+  NetworkTable table;
+
   /**
    * This function is run when the robot is first started up and should be used
    * for any initialization code.
    */
   @Override
   public void robotInit() {
+    NetworkTableInstance inst = NetworkTableInstance.getDefault();
+    table = inst.getTable("ChickenVision");
   }
 
   /**
@@ -88,6 +99,7 @@ public class Robot extends TimedRobot {
    */
   @Override
   public void teleopPeriodic() {
+    //SmartDashboard.putNumber("tapeTiltnew", table.getEntry("tapeTilt").getNumber(0).doubleValue());
     // m_robotDrive.arcadeDrive(m_stick.gRelay.Value.kForwardetY(), m_stick.getX());
     // talon2.set(ControlMode.PercentOutput, m_stick.getY());
     // talon3.set(ControlMode.PercentOutput, m_stick.getX());
@@ -103,18 +115,29 @@ public class Robot extends TimedRobot {
       vacuum.set(Relay.Value.kForward);
       SmartDashboard.putString("vacuum", "forward");
     } else if (m_stick.getRawButton(8)) {
-      vacuum.set(Relay.Value.kReverse);
+      vacuum.set(Relay.Value.kReverse); // kReverse when red is on tube side
       SmartDashboard.putString("vacuum", "reverse");
     }
 
     if (m_stick.getTrigger()) {
-      double tilt = SmartDashboard.getNumber("tapeTilt", 0);
-      double yaw = SmartDashboard.getNumber("tapeYaw", 0);
+      // double tilt = SmartDashboard.getNumber("tapeTilt", 0);
+      // double yaw = SmartDashboard.getNumber("tapeYaw", 0);
+      double tilt = table.getEntry("tapeTilt").getNumber(0).doubleValue();
+      double yaw = table.getEntry("tapeYaw").getNumber(0).doubleValue();
 
-      double goal_yaw = -tilt;
-      double corrected_yaw = yaw / 30;
+      // tilt = tilt / 5;
 
-      drive(speed, goal_yaw - corrected_yaw);
+      // Exponential decay towards .2 from below (gets there tilt ~= .5)
+      // double goal_yaw = -.5 * Math.pow(.2 / 100, tilt) + .2;
+      double max_spin = .075;
+      double max_tilt = .25;
+      // Sigmoid function y=2*max_spin/(1+3^(-4*tilt/max_tilt))-max_spin
+      double goal_yaw = 2 * max_spin/(1 + Math.pow(3, -4*tilt/max_tilt)) - max_spin;
+      double corrected_yaw = yaw / 240;
+      SmartDashboard.putNumber("corrected_yaw", corrected_yaw);
+      SmartDashboard.putNumber("goal_yaw", goal_yaw);
+
+      drive(speed, goal_yaw + corrected_yaw);
     } else {
       drive(-m_stick.getY(), m_stick.getX());
     }
@@ -150,12 +173,24 @@ public class Robot extends TimedRobot {
     SmartDashboard.putNumber("direction", direction);
     SmartDashboard.putNumberArray("drive outputs",
         new double[] { constrain(speed - direction), constrain(speed + direction) });
+    // 2019 Bot
     // drive3.set(ControlMode.PercentOutput, -1 * constrain(speed - direction)); //
     // right
     // drive5.set(ControlMode.PercentOutput, -1 * constrain(speed - direction)); //
     // right
     // drive2.set(ControlMode.PercentOutput, constrain(speed + direction)); // left
     // drive4.set(ControlMode.PercentOutput, constrain(speed + direction)); // left
+    
+    // 2018 Bot
+    // talon0.set(ControlMode.PercentOutput, -1 * constrain(speed - direction)); // right
+    // talon2.set(ControlMode.PercentOutput, -1 * constrain(speed - direction)); // right
+    // talon1.set(ControlMode.PercentOutput, constrain(speed + direction)); // left
+    // talon3.set(ControlMode.PercentOutput, constrain(speed + direction)); // left
+    // 2018 Bot
+    talon0.set(ControlMode.PercentOutput, constrain(speed + direction)); // right
+    talon2.set(ControlMode.PercentOutput, constrain(speed + direction)); // right
+    talon1.set(ControlMode.PercentOutput, -1 * constrain(speed - direction)); // left
+    talon3.set(ControlMode.PercentOutput, -1 * constrain(speed - direction)); // left
   }
 
   private double constrain(double num) {
@@ -178,5 +213,5 @@ public class Robot extends TimedRobot {
 
   private double direction = .15;
   private double turn = 0; // (1 = right, -1 = left)
-  private double speed = .15;
+  private double speed = .25;
 }
