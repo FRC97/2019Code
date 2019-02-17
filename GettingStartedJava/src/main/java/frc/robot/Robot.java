@@ -44,7 +44,8 @@ public class Robot extends TimedRobot {
   private final DigitalInput line_middle = new DigitalInput(0);
   private final DigitalInput line_left = new DigitalInput(1);
   private final DigitalInput line_right = new DigitalInput(2);
-  private final Solenoid solenoid = new Solenoid(0);
+  private final Solenoid solenoid0 = new Solenoid(0);
+  private final Solenoid solenoid1 = new Solenoid(1);
   private final Relay vacuum = new Relay(0);
   private final VictorSP flip = new VictorSP(2);
 
@@ -119,6 +120,20 @@ public class Robot extends TimedRobot {
       SmartDashboard.putString("vacuum", "reverse");
     }
 
+    if (m_stick.getRawButton(4)) {
+      solenoid0.set(true);
+    }
+    else {
+      solenoid0.set(false);
+    }
+
+    if (m_stick.getRawButton(5)) {
+      solenoid1.set(true);
+    }
+    else {
+      solenoid1.set(false);
+    }
+
     if (m_stick.getTrigger()) {
       // double tilt = SmartDashboard.getNumber("tapeTilt", 0);
       // double yaw = SmartDashboard.getNumber("tapeYaw", 0);
@@ -174,23 +189,28 @@ public class Robot extends TimedRobot {
     SmartDashboard.putNumberArray("drive outputs",
         new double[] { constrain(speed - direction), constrain(speed + direction) });
     // 2019 Bot
-    // drive3.set(ControlMode.PercentOutput, -1 * constrain(speed - direction)); //
-    // right
-    // drive5.set(ControlMode.PercentOutput, -1 * constrain(speed - direction)); //
-    // right
+    // drive3.set(ControlMode.PercentOutput, -1 * constrain(speed - direction)); // right
+    // drive5.set(ControlMode.PercentOutput, -1 * constrain(speed - direction)); // right
     // drive2.set(ControlMode.PercentOutput, constrain(speed + direction)); // left
     // drive4.set(ControlMode.PercentOutput, constrain(speed + direction)); // left
     
+    // Weird
+    // if(speed < 0) {
+    //   direction *= -1;
+    // }
+    direction = direction * direction * direction;
+    speed = speed * speed * speed;
     // 2018 Bot
-    // talon0.set(ControlMode.PercentOutput, -1 * constrain(speed - direction)); // right
-    // talon2.set(ControlMode.PercentOutput, -1 * constrain(speed - direction)); // right
-    // talon1.set(ControlMode.PercentOutput, constrain(speed + direction)); // left
-    // talon3.set(ControlMode.PercentOutput, constrain(speed + direction)); // left
-    // 2018 Bot
-    talon0.set(ControlMode.PercentOutput, constrain(speed + direction)); // right
-    talon2.set(ControlMode.PercentOutput, constrain(speed + direction)); // right
-    talon1.set(ControlMode.PercentOutput, -1 * constrain(speed - direction)); // left
-    talon3.set(ControlMode.PercentOutput, -1 * constrain(speed - direction)); // left
+    talon0.set(ControlMode.PercentOutput, -1 * constrain(speed - direction)); // right
+    talon2.set(ControlMode.PercentOutput, -1 * constrain(speed - direction)); // right
+    talon1.set(ControlMode.PercentOutput, constrain(speed + direction)); // left
+    talon3.set(ControlMode.PercentOutput, constrain(speed + direction)); // left
+
+    // 2018 Bot Reverse
+    // talon0.set(ControlMode.PercentOutput, constrain(speed + direction)); // right
+    // talon2.set(ControlMode.PercentOutput, constrain(speed + direction)); // right
+    // talon1.set(ControlMode.PercentOutput, -1 * constrain(speed - direction)); // left
+    // talon3.set(ControlMode.PercentOutput, -1 * constrain(speed - direction)); // left
   }
 
   private double constrain(double num) {
