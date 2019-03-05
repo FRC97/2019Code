@@ -186,8 +186,9 @@ public class Robot extends TimedRobot {
   // direction(right->1, left->-1)
   private void drive(double speed, double direction) {
     SmartDashboard.putNumber("direction", direction);
-    SmartDashboard.putNumberArray("drive outputs",
-        new double[] { constrain(speed - direction), constrain(speed + direction) });
+    SmartDashboard.putNumber("speed", speed);
+    // SmartDashboard.putNumberArray("drive outputs",
+    //     new double[] { constrain(speed - direction), constrain(speed + direction) });
     // 2019 Bot
     // drive3.set(ControlMode.PercentOutput, -1 * constrain(speed - direction)); // right
     // drive5.set(ControlMode.PercentOutput, -1 * constrain(speed - direction)); // right
@@ -198,19 +199,19 @@ public class Robot extends TimedRobot {
     // if(speed < 0) {
     //   direction *= -1;
     // }
-    direction = direction * direction * direction;
-    speed = speed * speed * speed;
+    // direction = direction * direction * direction;
+    // speed = speed * speed * speed;
     // 2018 Bot
-    talon0.set(ControlMode.PercentOutput, -1 * constrain(speed - direction)); // right
-    talon2.set(ControlMode.PercentOutput, -1 * constrain(speed - direction)); // right
-    talon1.set(ControlMode.PercentOutput, constrain(speed + direction)); // left
-    talon3.set(ControlMode.PercentOutput, constrain(speed + direction)); // left
+    // talon0.set(ControlMode.PercentOutput, -1 * constrain(speed - direction)); // right
+    // talon2.set(ControlMode.PercentOutput, -1 * constrain(speed - direction)); // right
+    // talon1.set(ControlMode.PercentOutput, constrain(speed + direction)); // left
+    // talon3.set(ControlMode.PercentOutput, constrain(speed + direction)); // left
 
     // 2018 Bot Reverse
-    // talon0.set(ControlMode.PercentOutput, constrain(speed + direction)); // right
-    // talon2.set(ControlMode.PercentOutput, constrain(speed + direction)); // right
-    // talon1.set(ControlMode.PercentOutput, -1 * constrain(speed - direction)); // left
-    // talon3.set(ControlMode.PercentOutput, -1 * constrain(speed - direction)); // left
+    talon0.set(ControlMode.PercentOutput, constrain(speed + direction)); // right
+    talon2.set(ControlMode.PercentOutput, constrain(speed + direction)); // right
+    talon1.set(ControlMode.PercentOutput, -1 * constrain(speed - direction)); // left
+    talon3.set(ControlMode.PercentOutput, -1 * constrain(speed - direction)); // left
   }
 
   private double constrain(double num) {
