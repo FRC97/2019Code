@@ -17,6 +17,7 @@ import edu.wpi.first.wpilibj.DigitalInput;
 import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.PWMVictorSPX;
 import edu.wpi.first.wpilibj.Relay;
+import edu.wpi.first.wpilibj.Servo;
 import edu.wpi.first.wpilibj.Solenoid;
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.Timer;
@@ -48,6 +49,12 @@ public class Robot extends TimedRobot {
   private final Solenoid solenoid1 = new Solenoid(1);
   private final Relay vacuum = new Relay(0);
   private final VictorSP flip = new VictorSP(2);
+
+//Camera Stuff:
+  private final Servo camera_servo = new Servo(8);
+  private boolean tape_previously_detected = false;
+  private double current_camera_angle = camera_servo.getAngle();
+  private double auto_turn;
 
   // 2018
   private final TalonSRX talon0 = new TalonSRX(0);
@@ -92,7 +99,8 @@ public class Robot extends TimedRobot {
    */
   @Override
   public void teleopInit() {
-
+    m_timer.reset();
+    m_timer.start();
   }
 
   /**
@@ -100,6 +108,7 @@ public class Robot extends TimedRobot {
    */
   @Override
   public void teleopPeriodic() {
+    SmartDashboard.putNumber("M_Timer", m_timer.get());
     //SmartDashboard.putNumber("tapeTiltnew", table.getEntry("tapeTilt").getNumber(0).doubleValue());
     // m_robotDrive.arcadeDrive(m_stick.gRelay.Value.kForwardetY(), m_stick.getX());
     // talon2.set(ControlMode.PercentOutput, m_stick.getY());
@@ -138,23 +147,54 @@ public class Robot extends TimedRobot {
       // double tilt = SmartDashboard.getNumber("tapeTilt", 0);
       // double yaw = SmartDashboard.getNumber("tapeYaw", 0);
       double tilt = table.getEntry("tapeTilt").getNumber(0).doubleValue();
-      double yaw = table.getEntry("tapeYaw").getNumber(0).doubleValue();
+      // double yaw = table.getEntry("tapeYaw").getNumber(0).doubleValue();
 
+      double yaw = (current_camera_angle - 92.5)/2;
       // tilt = tilt / 5;
 
       // Exponential decay towards .2 from below (gets there tilt ~= .5)
       // double goal_yaw = -.5 * Math.pow(.2 / 100, tilt) + .2;
-      double max_spin = .075;
+      double max_spin = .150;
       double max_tilt = .25;
       // Sigmoid function y=2*max_spin/(1+3^(-4*tilt/max_tilt))-max_spin
       double goal_yaw = 2 * max_spin/(1 + Math.pow(3, -4*tilt/max_tilt)) - max_spin;
-      double corrected_yaw = yaw / 240;
+      double corrected_yaw = Math.pow(yaw / 240, 3);
       SmartDashboard.putNumber("corrected_yaw", corrected_yaw);
       SmartDashboard.putNumber("goal_yaw", goal_yaw);
+
+      auto_turn = goal_yaw + corrected_yaw;
 
       drive(speed, goal_yaw + corrected_yaw);
     } else {
       drive(-m_stick.getY(), m_stick.getX());
+    }
+
+    // servo follow target
+    if(true) {
+      current_camera_angle = camera_servo.getAngle();
+      double target_angle = 47.5 + 45; // middle
+
+      boolean tape_detected = table.getEntry("tapeDetected").getBoolean(false);
+      // if(tape_previously_detected && !tape_detected) {
+        
+      //   m_timer.stop();
+      //   m_timer.reset();
+      //   m_timer.start();
+      // }
+
+      SmartDashboard.putNumber("current_camera_angle", current_camera_angle);
+      // tape_previously_detected = tape_detected;
+      if(tape_detected) {
+        double yaw = table.getEntry("tapeYaw").getNumber(0).doubleValue();
+        SmartDashboard.putNumber("yaw", yaw);
+        target_angle = current_camera_angle + Math.copySign(Math.pow(yaw/25, 2), yaw) - auto_turn * 5;
+        if(target_angle > 140) {
+          target_angle = 140;
+        } else if (target_angle < 45) {
+          target_angle = 45;
+        }
+      }
+      camera_servo.setAngle(target_angle);
     }
 
     // // Set flip motor to Z axis
@@ -234,5 +274,5 @@ public class Robot extends TimedRobot {
 
   private double direction = .15;
   private double turn = 0; // (1 = right, -1 = left)
-  private double speed = .25;
+  private double speed = .20;
 }
