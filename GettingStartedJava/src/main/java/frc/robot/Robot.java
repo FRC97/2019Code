@@ -15,6 +15,7 @@ import edu.wpi.first.networktables.NetworkTable;
 import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.wpilibj.DigitalInput;
 import edu.wpi.first.wpilibj.Joystick;
+import edu.wpi.first.wpilibj.PIDController;
 import edu.wpi.first.wpilibj.PWMVictorSPX;
 import edu.wpi.first.wpilibj.Relay;
 import edu.wpi.first.wpilibj.Servo;
@@ -25,6 +26,7 @@ import edu.wpi.first.wpilibj.Victor;
 import edu.wpi.first.wpilibj.VictorSP;
 import edu.wpi.first.wpilibj.Relay.Value;
 import edu.wpi.first.wpilibj.drive.DifferentialDrive;
+import edu.wpi.first.wpilibj.livewindow.LiveWindow;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 /**
  * The VM is configured to automatically run this class, and to call the
@@ -55,12 +57,22 @@ public class Robot extends TimedRobot {
   private boolean tape_previously_detected = false;
   private double current_camera_angle = camera_servo.getAngle();
   private double auto_turn;
+  private final PIDController camera_pid = new PIDController(
+    .013, 0, .0125,
+    new PID_NetworkTables(),
+    new PID_Servo_Out(camera_servo, 45, 140), 0.02);
 
   // 2018
   private final TalonSRX talon0 = new TalonSRX(0);
   private final TalonSRX talon1 = new TalonSRX(1);
   private final TalonSRX talon2 = new TalonSRX(2);
   private final TalonSRX talon3 = new TalonSRX(3);
+
+  private final PIDController drive_pid =
+    new PIDController(
+      1, 0, 0,
+      new PID_Servo_In(camera_servo, 45, 140),
+      new PID_Drive(talon0, talon2, talon1, talon3), 0.02);
 
   NetworkTable table;
 
@@ -72,6 +84,7 @@ public class Robot extends TimedRobot {
   public void robotInit() {
     NetworkTableInstance inst = NetworkTableInstance.getDefault();
     table = inst.getTable("ChickenVision");
+    LiveWindow.add(camera_pid);
   }
 
   /**
@@ -101,13 +114,44 @@ public class Robot extends TimedRobot {
   public void teleopInit() {
     m_timer.reset();
     m_timer.start();
+
+    camera_servo.setAngle(92.5);
+    
+    LiveWindow.setEnabled(true);
+    camera_pid.setSetpoint(0);
+    // camera_pid.setInputRange(-35, 35);
+    camera_pid.setName("camera_pid");
+    camera_pid.setPercentTolerance(7.5);
+    camera_pid.enable();
+
+    drive_pid.setSetpoint(0);
+    drive_pid.setName("drive_pid");
+    drive_pid.setPercentTolerance(7.5);
+        
+    // camera_pid.setOutputRange(-1, 1);
   }
+
+  private final double max_turn = .8;
+  private final double tilt_thresh = .1;
 
   /**
    * This function is called periodically during teleoperated mode.
    */
   @Override
   public void teleopPeriodic() {
+    if(m_stick.getTrigger()) {
+      drive_pid.enable();
+      double tilt = 0;
+      if(tilt > tilt_thresh) {
+        drive_pid.setSetpoint(max_turn);
+      } else if(tilt < -tilt_thresh) {
+        drive_pid.setSetpoint(-max_turn);
+      } else {
+        drive_pid.setSetpoint(0);
+      }
+    } else {
+      drive_pid.disable();
+    }
     SmartDashboard.putNumber("M_Timer", m_timer.get());
     //SmartDashboard.putNumber("tapeTiltnew", table.getEntry("tapeTilt").getNumber(0).doubleValue());
     // m_robotDrive.arcadeDrive(m_stick.gRelay.Value.kForwardetY(), m_stick.getX());
@@ -143,59 +187,61 @@ public class Robot extends TimedRobot {
       solenoid1.set(false);
     }
 
-    if (m_stick.getTrigger()) {
-      // double tilt = SmartDashboard.getNumber("tapeTilt", 0);
-      // double yaw = SmartDashboard.getNumber("tapeYaw", 0);
-      double tilt = table.getEntry("tapeTilt").getNumber(0).doubleValue();
-      // double yaw = table.getEntry("tapeYaw").getNumber(0).doubleValue();
+    // if (m_stick.getTrigger()) {
+    //   // double tilt = SmartDashboard.getNumber("tapeTilt", 0);
+    //   // double yaw = SmartDashboard.getNumber("tapeYaw", 0);
+    //   double tilt = table.getEntry("tapeTilt").getNumber(0).doubleValue();
+    //   // double yaw = table.getEntry("tapeYaw").getNumber(0).doubleValue();
 
-      double yaw = (current_camera_angle - 92.5)/2;
-      // tilt = tilt / 5;
+    //   double yaw = (current_camera_angle - 92.5)/2;
+    //   // tilt = tilt / 5;
 
-      // Exponential decay towards .2 from below (gets there tilt ~= .5)
-      // double goal_yaw = -.5 * Math.pow(.2 / 100, tilt) + .2;
-      double max_spin = .150;
-      double max_tilt = .25;
-      // Sigmoid function y=2*max_spin/(1+3^(-4*tilt/max_tilt))-max_spin
-      double goal_yaw = 2 * max_spin/(1 + Math.pow(3, -4*tilt/max_tilt)) - max_spin;
-      double corrected_yaw = Math.pow(yaw / 240, 3);
-      SmartDashboard.putNumber("corrected_yaw", corrected_yaw);
-      SmartDashboard.putNumber("goal_yaw", goal_yaw);
+    //   // Exponential decay towards .2 from below (gets there tilt ~= .5)
+    //   // double goal_yaw = -.5 * Math.pow(.2 / 100, tilt) + .2;
+    //   double max_spin = .085;
+    //   double max_tilt = .25;
+    //   // Sigmoid function y=2*max_spin/(1+3^(-4*tilt/max_tilt))-max_spin
+    //   double goal_yaw = 2 * max_spin/(1 + Math.pow(3, -4*tilt/max_tilt)) - max_spin;
+    //   double corrected_yaw = Math.pow(yaw / 240, 3);
+    //   SmartDashboard.putNumber("corrected_yaw", corrected_yaw);
+    //   SmartDashboard.putNumber("goal_yaw", goal_yaw);
 
-      auto_turn = goal_yaw + corrected_yaw;
+    //   auto_turn = goal_yaw + corrected_yaw;
 
-      drive(speed, goal_yaw + corrected_yaw);
-    } else {
-      drive(-m_stick.getY(), m_stick.getX());
-    }
+    //   drive(speed, goal_yaw + corrected_yaw);
+    // } else {
+    //   drive(-m_stick.getY(), m_stick.getX());
+    // }
 
-    // servo follow target
-    if(true) {
-      current_camera_angle = camera_servo.getAngle();
-      double target_angle = 47.5 + 45; // middle
+    // // servo follow target
+    // if(true) {
+    //   current_camera_angle = camera_servo.getAngle();
+    //   double target_angle = 47.5 + 45; // middle
 
-      boolean tape_detected = table.getEntry("tapeDetected").getBoolean(false);
-      // if(tape_previously_detected && !tape_detected) {
+    //   boolean tape_detected = table.getEntry("tapeDetected").getBoolean(false);
+    //   // if(tape_previously_detected && !tape_detected) {
         
-      //   m_timer.stop();
-      //   m_timer.reset();
-      //   m_timer.start();
-      // }
+    //   //   m_timer.stop();
+    //   //   m_timer.reset();
+    //   //   m_timer.start();
+    //   // }
 
-      SmartDashboard.putNumber("current_camera_angle", current_camera_angle);
-      // tape_previously_detected = tape_detected;
-      if(tape_detected) {
-        double yaw = table.getEntry("tapeYaw").getNumber(0).doubleValue();
-        SmartDashboard.putNumber("yaw", yaw);
-        target_angle = current_camera_angle + Math.copySign(Math.pow(yaw/25, 2), yaw) - auto_turn * 5;
-        if(target_angle > 140) {
-          target_angle = 140;
-        } else if (target_angle < 45) {
-          target_angle = 45;
-        }
-      }
-      camera_servo.setAngle(target_angle);
-    }
+    //   SmartDashboard.putNumber("current_camera_angle", current_camera_angle);
+    //   // tape_previously_detected = tape_detected;
+    //   // if(tape_detected) {
+    //   //   double yaw = table.getEntry("tapeYaw").getNumber(0).doubleValue();
+    //   //   SmartDashboard.putNumber("yaw", yaw);
+    //   //   target_angle = current_camera_angle + Math.copySign(Math.pow(yaw/25, 2), yaw);
+    //   //   if(target_angle > 140) {
+    //   //     target_angle = 140;
+    //   //   } else if (target_angle < 45) {
+    //   //     target_angle = 45;
+    //   //   }
+    //   // }
+    //   // camera_servo.setAngle(target_angle);
+
+    // }
+
 
     // // Set flip motor to Z axis
     // if(m_stick.getTrigger()) {
