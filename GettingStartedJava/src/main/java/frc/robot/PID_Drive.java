@@ -22,20 +22,22 @@ public class PID_Drive implements PIDOutput {
     TalonSRX br;
     TalonSRX fl;
     TalonSRX bl;
+    double speed;
     
 
-    public PID_Drive(TalonSRX fr, TalonSRX br, TalonSRX fl, TalonSRX bl) {
+    public PID_Drive(TalonSRX fr, TalonSRX br, TalonSRX fl, TalonSRX bl, double speed) {
         this.fr = fr;
         this.br = br;
         this.fl = fl;
         this.bl = bl;
+        this.speed = speed;
     }
 
     @Override
     public void pidWrite(double output) {
-        output = constrain(output);
+        output = constrain(-output);
         output = output * Math.PI/2;
-        drive(Math.cos(output), Math.sin(output));
+        drive(speed * Math.cos(output), speed * Math.sin(output));
     }
 
     // direction(right->1, left->-1)
