@@ -68,7 +68,7 @@ public class Robot extends TimedRobot {
   private final TalonSRX talon3 = new TalonSRX(3);
 
   private final PIDController drive_pid = new PIDController(1, 0, 0, new PID_Servo_In(camera_servo, 45, 140),
-      new PID_Drive(talon0, talon2, talon1, talon3, .15), 0.02);
+      new PID_Drive(talon0, talon2, talon1, talon3, .25), 0.02);
 
   NetworkTable table;
 
@@ -139,7 +139,7 @@ public class Robot extends TimedRobot {
   @Override
   public void teleopPeriodic() {
     tilt_thresh = SmartDashboard.getNumber("tilt_thresh", 0);
-    if (m_stick.getTrigger() && !drive_pid_enabled) {q
+    if (m_stick.getTrigger() && !drive_pid_enabled) {
       drive_pid.enable();
       drive_pid_enabled = true;
     } else if (!m_stick.getTrigger() && drive_pid_enabled) {
