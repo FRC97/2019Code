@@ -67,8 +67,8 @@ public class Robot extends TimedRobot {
   private final TalonSRX talon2 = new TalonSRX(2);
   private final TalonSRX talon3 = new TalonSRX(3);
 
-  private final PIDController drive_pid = new PIDController(1, 0, 0, new PID_Servo_In(camera_servo, 45, 140),
-      new PID_Drive(talon0, talon2, talon1, talon3, .25), 0.02);
+  private final PIDController drive_pid = new PIDController(.5, 0, 0, new PID_Servo_In(camera_servo, 45, 140),
+      new PID_Drive(talon0, talon2, talon1, talon3, .2), 0.02);
 
   NetworkTable table;
 
@@ -132,6 +132,7 @@ public class Robot extends TimedRobot {
   private final double max_turn = .8;
   private double tilt_thresh = .2;
   private boolean drive_pid_enabled = false;
+  private boolean camera_pid_enabled = false;
 
   /**
    * This function is called periodically during teleoperated mode.
@@ -139,13 +140,28 @@ public class Robot extends TimedRobot {
   @Override
   public void teleopPeriodic() {
     tilt_thresh = SmartDashboard.getNumber("tilt_thresh", 0);
-    if (m_stick.getTrigger() && !drive_pid_enabled) {
+    boolean tape_detected = table.getEntry("tapeDetected").getBoolean(false);
+
+    // Enable/Disable drive_pid?
+    if ((m_stick.getTrigger() && tape_detected) && !drive_pid_enabled) {
       drive_pid.enable();
       drive_pid_enabled = true;
     } else if (!m_stick.getTrigger() && drive_pid_enabled) {
       drive_pid.disable();
       drive_pid_enabled = false;
     }
+
+    // Enable/Disable camera_pid?
+    if (m_stick.getTrigger() && !camera_pid_enabled) {
+      camera_pid.enable();
+      camera_pid_enabled = true;
+    } else if (!m_stick.getTrigger() && camera_pid_enabled) {
+      camera_pid.disable();
+      camera_pid_enabled = false;
+      camera_servo.setAngle(92.5);
+    }
+
+    // Drive controls
     if(drive_pid_enabled) {
       double tilt = table.getEntry("tapeTilt").getNumber(0).doubleValue();
       if (tilt > tilt_thresh) {
@@ -158,8 +174,19 @@ public class Robot extends TimedRobot {
         drive_pid.setSetpoint(0);
         SmartDashboard.putBoolean("centerline_found", true);
       }
-    } else {
+    } else if(m_stick.getTrigger()){
+      drive(.15, 0);
+    }
+    else {
       drive(-m_stick.getY(), m_stick.getX());
+    }
+
+    if(m_stick.getRawButton(10)) {
+      flip.set(-.25);
+    } else if(m_stick.getRawButton(11)) {
+      flip.set(.25);
+    } else {
+      flip.set(0);
     }
   }
   // SmartDashboard.putNumber("M_Timer", m_timer.get());
