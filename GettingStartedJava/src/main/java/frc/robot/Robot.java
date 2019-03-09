@@ -50,8 +50,10 @@ public class Robot extends TimedRobot {
   private final DigitalInput line_right = new DigitalInput(2);
   private final Solenoid solenoid0 = new Solenoid(0);
   private final Solenoid solenoid1 = new Solenoid(1);
-  private final Relay vacuum = new Relay(0);
-  private final VictorSP flip = new VictorSP(2);
+  private final VictorSP vacuum_a = new VictorSP(0);
+  private final VictorSP vacuum_b = new VictorSP(2);
+  private final VictorSP flip = new VictorSP(1);
+  private final Relay valve = new Relay(0);
 
   // Camera Stuff:
   private final Servo camera_servo = new Servo(8);
@@ -82,7 +84,7 @@ public class Robot extends TimedRobot {
     table = inst.getTable("ChickenVision");
     LiveWindow.add(camera_pid);
     LiveWindow.add(drive_pid);
-    SmartDashboard.putNumber("tilt_thresh", .1); 
+    SmartDashboard.putNumber("tilt_thresh", .1);
   }
 
   /**
@@ -90,6 +92,7 @@ public class Robot extends TimedRobot {
    */
   @Override
   public void autonomousInit() {
+    teleopInit();
   }
 
   /**
@@ -97,13 +100,14 @@ public class Robot extends TimedRobot {
    */
   @Override
   public void autonomousPeriodic() {
+    teleopPeriodic();
+  }
     // Drive for 2 seconds
     // if (m_timer.get() < 2.0) {
     // m_robotDrive.arcadeDrive(0.5, 0.0); // drive forwards half speed
     // } else {
     // m_robotDrive.stopMotor(); // stop robot
     // }
-  }
 
   /**
    * This function is called once each time the robot enters teleoperated mode.
@@ -116,17 +120,20 @@ public class Robot extends TimedRobot {
     camera_servo.setAngle(92.5);
 
     LiveWindow.setEnabled(true);
+    camera_pid.enable();
     camera_pid.setSetpoint(0);
     // camera_pid.setInputRange(-35, 35);
     camera_pid.setName("camera_pid");
     camera_pid.setPercentTolerance(7.5);
-    camera_pid.enable();
 
+    drive_pid.disable();
     drive_pid.setSetpoint(0);
     drive_pid.setName("drive_pid");
     drive_pid.setPercentTolerance(7.5);
-    drive_pid.disable();
     // camera_pid.setOutputRange(-1, 1);
+
+    vacuum_a.set(1);
+    vacuum_b.set(1);
   }
 
   private final double max_turn = .8;
@@ -178,15 +185,24 @@ public class Robot extends TimedRobot {
       drive(.15, 0);
     }
     else {
-      drive(-m_stick.getY(), m_stick.getX());
+      joy_drive(-m_stick.getY(), m_stick.getX());
     }
 
-    if(m_stick.getRawButton(10)) {
-      flip.set(-.25);
-    } else if(m_stick.getRawButton(11)) {
-      flip.set(.25);
+    // Flipping
+    if(m_stick.getRawButton(6)) {
+      flip.set(-.5);
+    } else if(m_stick.getRawButton(7)) {
+      flip.set(.5);
     } else {
       flip.set(0);
+    }
+
+    // Valve
+    if(m_stick.getRawButton(5)) {
+      valve.set(Value.kForward);
+    }
+    else {
+      valve.set(Value.kOff);
     }
   }
   // SmartDashboard.putNumber("M_Timer", m_timer.get());
@@ -307,6 +323,10 @@ public class Robot extends TimedRobot {
   // drive(-m_stick.getY(), m_stick.getX());
   // }
 
+  private void joy_drive(double speed, double direction) {
+    drive(Math.pow(speed, 3), Math.pow(direction, 3));
+  }
+
   // direction(right->1, left->-1)
   private void drive(double speed, double direction) {
     SmartDashboard.putNumber("direction", direction);
@@ -314,12 +334,10 @@ public class Robot extends TimedRobot {
     // SmartDashboard.putNumberArray("drive outputs",
     // new double[] { constrain(speed - direction), constrain(speed + direction) });
     // 2019 Bot
-    // drive3.set(ControlMode.PercentOutput, -1 * constrain(speed - direction)); //
-    // right
-    // drive5.set(ControlMode.PercentOutput, -1 * constrain(speed - direction)); //
-    // right
-    // drive2.set(ControlMode.PercentOutput, constrain(speed + direction)); // left
-    // drive4.set(ControlMode.PercentOutput, constrain(speed + direction)); // left
+    drive3.set(ControlMode.PercentOutput, -1 * constrain(speed - direction)); // right
+    drive5.set(ControlMode.PercentOutput, -1 * constrain(speed - direction)); // right
+    drive2.set(ControlMode.PercentOutput, constrain(speed + direction)); // left
+    drive4.set(ControlMode.PercentOutput, constrain(speed + direction)); // left
 
     // Weird
     // if(speed < 0) {
@@ -336,10 +354,10 @@ public class Robot extends TimedRobot {
     // talon3.set(ControlMode.PercentOutput, constrain(speed + direction)); // left
 
     // 2018 Bot Reverse
-    talon0.set(ControlMode.PercentOutput, constrain(speed + direction)); // right
-    talon2.set(ControlMode.PercentOutput, constrain(speed + direction)); // right
-    talon1.set(ControlMode.PercentOutput, -1 * constrain(speed - direction)); // left
-    talon3.set(ControlMode.PercentOutput, -1 * constrain(speed - direction)); // left
+    // talon0.set(ControlMode.PercentOutput, constrain(speed + direction)); // right
+    // talon2.set(ControlMode.PercentOutput, constrain(speed + direction)); // right
+    // talon1.set(ControlMode.PercentOutput, -1 * constrain(speed - direction)); // left
+    // talon3.set(ControlMode.PercentOutput, -1 * constrain(speed - direction)); // left
   }
 
   private double constrain(double num) {
