@@ -28,6 +28,7 @@ import edu.wpi.first.wpilibj.Relay.Value;
 import edu.wpi.first.wpilibj.drive.DifferentialDrive;
 import edu.wpi.first.wpilibj.livewindow.LiveWindow;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+import edu.wpi.first.wpilibj.Ultrasonic;
 
 /**
  * The VM is configured to automatically run this class, and to call the
@@ -54,6 +55,8 @@ public class Robot extends TimedRobot {
   private final VictorSP vacuum_b = new VictorSP(2);
   private final VictorSP flip = new VictorSP(1);
   private final Relay valve = new Relay(0);
+  private final Ultrasonic right_ultra = new Ultrasonic(3, 4);
+  private final Ultrasonic left_ultra = new Ultrasonic(5, 6);
 
   // Camera Stuff:
   private final Servo camera_servo = new Servo(8);
@@ -69,7 +72,9 @@ public class Robot extends TimedRobot {
   private final TalonSRX talon2 = new TalonSRX(2);
   private final TalonSRX talon3 = new TalonSRX(3);
 
-  private final PIDController drive_pid = new PIDController(.5, 0, 0, new PID_Servo_In(camera_servo, 45, 140),
+  // private final PIDController drive_pid = new PIDController(.5, 0, 0, new PID_Servo_In(camera_servo, 45, 140),
+  //     new PID_Drive(talon0, talon2, talon1, talon3, .2), 0.02);
+  private final PIDController drive_pid = new PIDController(.5, 0, 0, new PID_NetworkTables(),
       new PID_Drive(talon0, talon2, talon1, talon3, .2), 0.02);
 
   NetworkTable table;
@@ -120,7 +125,7 @@ public class Robot extends TimedRobot {
     camera_servo.setAngle(92.5);
 
     LiveWindow.setEnabled(true);
-    camera_pid.enable();
+    camera_pid.disable();
     camera_pid.setSetpoint(0);
     // camera_pid.setInputRange(-35, 35);
     camera_pid.setName("camera_pid");
@@ -134,6 +139,9 @@ public class Robot extends TimedRobot {
 
     vacuum_a.set(1);
     vacuum_b.set(1);
+
+    right_ultra.setAutomaticMode(true);
+    left_ultra.setAutomaticMode(true);
   }
 
   private final double max_turn = .8;
@@ -150,60 +158,101 @@ public class Robot extends TimedRobot {
     boolean tape_detected = table.getEntry("tapeDetected").getBoolean(false);
 
     // Enable/Disable drive_pid?
-    if ((m_stick.getTrigger() && tape_detected) && !drive_pid_enabled) {
-      drive_pid.enable();
-      drive_pid_enabled = true;
-    } else if (!m_stick.getTrigger() && drive_pid_enabled) {
-      drive_pid.disable();
-      drive_pid_enabled = false;
-    }
+    // if ((m_stick.getTrigger() && tape_detected) && !drive_pid_enabled) {
+    //   drive_pid.enable();
+    //   drive_pid_enabled = true;
+    // } else if (!m_stick.getTrigger() && drive_pid_enabled) {
+    //   drive_pid.disable();
+    //   drive_pid_enabled = false;
+    // }
 
     // Enable/Disable camera_pid?
-    if (m_stick.getTrigger() && !camera_pid_enabled) {
-      camera_pid.enable();
-      camera_pid_enabled = true;
-    } else if (!m_stick.getTrigger() && camera_pid_enabled) {
-      camera_pid.disable();
-      camera_pid_enabled = false;
-      camera_servo.setAngle(92.5);
-    }
+    // if (m_stick.getTrigger() && !camera_pid_enabled) {
+    //   camera_pid.enable();
+    //   //camera_pid_enabled = true;
+    // } else if (!m_stick.getTrigger() && camera_pid_enabled) {
+    //   camera_pid.disable();
+    //   camera_pid_enabled = false;
+    //   camera_servo.setAngle(92.5);
+    // }
 
-    // Drive controls
-    if(drive_pid_enabled) {
-      double tilt = table.getEntry("tapeTilt").getNumber(0).doubleValue();
-      if (tilt > tilt_thresh) {
-        drive_pid.setSetpoint(-max_turn);
-        SmartDashboard.putBoolean("centerline_found", false);
-      } else if (tilt < -tilt_thresh) {
-        drive_pid.setSetpoint(max_turn);
-        SmartDashboard.putBoolean("centerline_found", false);
+    // Drive controls for vp
+    // if(drive_pid_enabled) {
+    //   double tilt = table.getEntry("tapeTilt").getNumber(0).doubleValue();
+    //   if (tilt > tilt_thresh) {
+    //     drive_pid.setSetpoint(-max_turn);
+    //     SmartDashboard.putBoolean("centerline_found", false);
+    //   } else if (tilt < -tilt_thresh) {
+    //     drive_pid.setSetpoint(max_turn);
+    //     SmartDashboard.putBoolean("centerline_found", false);
+    //   } else {
+    //     drive_pid.setSetpoint(0);
+    //     SmartDashboard.putBoolean("centerline_found", true);
+    //   }
+    // } else if(m_stick.getTrigger()){
+    //   drive(.15, 0);
+    // }
+    // else {
+    //   double trim = (1 - m_stick.getZ()) / 2;
+    //   joy_drive(-m_stick.getY(), m_stick.getX(), trim);
+    // }
+
+    double right_dist = right_ultra.getRangeInches();
+    double left_dist = left_ultra.getRangeInches();
+    double wall_angle = Math.cbrt(Math.atan((right_dist - left_dist)/18));
+    double wall_thresh = .05;
+    SmartDashboard.putNumber("right_dist", right_dist);
+    SmartDashboard.putNumber("left_dist", left_dist);
+    SmartDashboard.putNumber("wall_angle", wall_angle);
+
+    // Drive controls for line sensing
+    if(m_stick.getTrigger()) {
+      if(line_middle.get()) {
+        if(Math.abs(wall_angle) < wall_thresh) {
+          // Line following
+          drive(.15, 0);
+        } else {
+          drive(0, wall_angle);
+        }
       } else {
-        drive_pid.setSetpoint(0);
-        SmartDashboard.putBoolean("centerline_found", true);
+        double trim = (1 - m_stick.getZ()) / 2;
+        joy_drive(.55, m_stick.getX(), trim);
       }
-    } else if(m_stick.getTrigger()){
-      drive(.15, 0);
-    }
-    else {
-      joy_drive(-m_stick.getY(), m_stick.getX());
+    } else {
+      double trim = (1 - m_stick.getZ()) / 2;
+      joy_drive(-m_stick.getY(), m_stick.getX(), trim);
     }
 
     // Flipping
     if(m_stick.getRawButton(6)) {
-      flip.set(-.5);
+      double trim = (1 - m_stick.getZ()) / 2;
+      flip.set(-1 * trim);
     } else if(m_stick.getRawButton(7)) {
-      flip.set(.5);
+      double trim = (1 - m_stick.getZ()) / 2;
+      flip.set(1 * trim);
     } else {
       flip.set(0);
     }
-
-    // Valve
-    if(m_stick.getRawButton(5)) {
+    
+    // Vacuum
+    if(m_stick.getRawButton(2)) {
+      vacuum_a.set(0);
+      vacuum_b.set(0);
       valve.set(Value.kForward);
-    }
-    else {
+    } else {
+      vacuum_a.set(1);
+      vacuum_b.set(1);
       valve.set(Value.kOff);
     }
+
+    // // Valve
+    // if(m_stick.getRawButton(5)) {
+    //   valve.set(Value.kForward);
+    // } else if(m_stick.getRawButton(4)) {
+    //   valve.set(Value.kReverse);
+    // } else {
+    //   valve.set(Value.kOff);
+    // }
   }
   // SmartDashboard.putNumber("M_Timer", m_timer.get());
   // //SmartDashboard.putNumber("tapeTiltnew",
@@ -323,8 +372,8 @@ public class Robot extends TimedRobot {
   // drive(-m_stick.getY(), m_stick.getX());
   // }
 
-  private void joy_drive(double speed, double direction) {
-    drive(Math.pow(speed, 3), Math.pow(direction, 3));
+  private void joy_drive(double speed, double direction, double trim) {
+    drive(trim * Math.pow(speed, 3), trim * .75 * Math.pow(direction, 3));
   }
 
   // direction(right->1, left->-1)
@@ -334,10 +383,10 @@ public class Robot extends TimedRobot {
     // SmartDashboard.putNumberArray("drive outputs",
     // new double[] { constrain(speed - direction), constrain(speed + direction) });
     // 2019 Bot
-    drive3.set(ControlMode.PercentOutput, -1 * constrain(speed - direction)); // right
-    drive5.set(ControlMode.PercentOutput, -1 * constrain(speed - direction)); // right
-    drive2.set(ControlMode.PercentOutput, constrain(speed + direction)); // left
-    drive4.set(ControlMode.PercentOutput, constrain(speed + direction)); // left
+    // drive3.set(ControlMode.PercentOutput, -1 * constrain(speed - direction)); // right
+    // drive5.set(ControlMode.PercentOutput, -1 * constrain(speed - direction)); // right
+    // drive2.set(ControlMode.PercentOutput, constrain(speed + direction)); // left
+    // drive4.set(ControlMode.PercentOutput, constrain(speed + direction)); // left
 
     // Weird
     // if(speed < 0) {
@@ -354,10 +403,10 @@ public class Robot extends TimedRobot {
     // talon3.set(ControlMode.PercentOutput, constrain(speed + direction)); // left
 
     // 2018 Bot Reverse
-    // talon0.set(ControlMode.PercentOutput, constrain(speed + direction)); // right
-    // talon2.set(ControlMode.PercentOutput, constrain(speed + direction)); // right
-    // talon1.set(ControlMode.PercentOutput, -1 * constrain(speed - direction)); // left
-    // talon3.set(ControlMode.PercentOutput, -1 * constrain(speed - direction)); // left
+    talon0.set(ControlMode.PercentOutput, constrain(speed + direction)); // right
+    talon2.set(ControlMode.PercentOutput, constrain(speed + direction)); // right
+    talon1.set(ControlMode.PercentOutput, -1 * constrain(speed - direction)); // left
+    talon3.set(ControlMode.PercentOutput, -1 * constrain(speed - direction)); // left
   }
 
   private double constrain(double num) {

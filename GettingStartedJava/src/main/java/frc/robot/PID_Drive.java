@@ -45,7 +45,6 @@ public class PID_Drive implements PIDOutput {
         SmartDashboard.putNumber("direction", direction);
         SmartDashboard.putNumber("speed", speed);
 
-        // 2018 Bot Reverse
         fr.set(ControlMode.PercentOutput, constrain(speed + direction)); // right
         br.set(ControlMode.PercentOutput, constrain(speed + direction)); // right
         fl.set(ControlMode.PercentOutput, -1 * constrain(speed - direction)); // left
